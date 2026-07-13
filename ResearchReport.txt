@@ -1,0 +1,145 @@
+📂 TECHNICAL RESEARCH & INNOVATION REPORT
+Target Conference: IEEE International Conference on Acoustics, Speech, and Signal Processing (ICASSP 2027, Toronto)  
+IEEE ICASSP
+
+Project Title: Modular Edge-Assisted Speech Architectures for Code-Switched Cardiovascular Healthcare
+
+Author / Presenter: Corporate Research Intern, TCS Research & Innovation
+
+Experimental Hardware Platform: NVIDIA RTX PRO 5000 (Blackwell Generation, Compute Capability sm_120), Linux, PyTorch Nightly (cu124)
+
+1. EXECUTIVE SUMMARY & OVERVIEW OF WORK DONE SO FAR
+This project aims to engineer an open-source, real-time, multilingual conversational speech assistant for cardiology patient care deployed locally on high-performance edge hardware. The system must navigate three critical domain constraints: (1) Acoustic Robustness: handling weak, slurred elderly speech and ambient hospital noise; (2) Linguistic Flexibility: supporting dynamic code-switching across English, Hindi, and Hinglish without cognitive drop-off; and (3) Clinical Safety: guaranteeing near-instant conversational latency while enforcing zero-hallucination medical reasoning.
+
+To arrive at our optimal target architecture, we conducted a systematic empirical exploration across three distinct speech AI paradigms:
+
+[PHASE 1: Cascaded Modular]   VAD ➔ Faster-Whisper ➔ LLM (Qwen/Nemotron) ➔ Coqui XTTS
+                              ├── ✔ Fast processing (~1.5s TTFA)
+                              └── ✖ ASR Phonetic Error Cascading & Tokenizer Asymmetry
+
+[PHASE 2: Semi-Multimodal]    VAD ➔ Gemma Audio Native Core ➔ Parler TTS
+                              ├── ✔ No ASR error propagation; superior acoustic reasoning
+                              └── ✖ Severe latency inflation (~8.8s TTFA) via Tag Blockade
+
+[PHASE 3: End-to-End Test]    VAD ➔ Meta SeamlessM4T v2 (UnitY2 Core)
+                              ├── ✔ Exceptional zero-shot Indic speech & voice translation
+                              └── ✖ Lacks instruction-tuned clinical reasoning & persona
+
+[CURRENT CONVERGED STATE]     VAD ➔ SeamlessM4T Hub (STT/TTS) + Llama-3.1-8B / Nemotron Brain
+Phase 1: The Cascaded Minimal Pipeline (Baseline)
+We implemented a Walkie-Talkie style half-duplex pipeline comprising Silero VAD → Faster-Whisper (Large-v3-turbo, FP16) → Qwen-2.5-3B-Instruct / Nemotron-4B-Mini-Hindi → Coqui XTTS-v2 / StyleTTS2.
+
+Key Engineering Achievement: We successfully bypassed a major architectural blocker on bleeding-edge Blackwell GPUs (sm_120). Because PyTorch 2.6 lacks the sinc_resample GPU kernel for sm_120, calling audio resampling on the GPU caused immediate system crashes. We implemented a CPU-first initialization workaround where speaker embeddings and reference profiles (doctor_voice.wav) are computed entirely on the CPU before pushing the weights to VRAM.
+
+Observed Limitations: While processing latency was excellent, the pipeline suffered from Acoustic-to-Semantic Error Cascading. When Whisper mis-transcribed complex cardiology terms in noisy or slurred conditions (e.g., transcribing Clopidogrel as clubby dog rhythm or ECG as ICP), the downstream LLM blindly generated medically hazardous responses. Furthermore, Western-centric tokenizers caused high computation overhead and VRAM strain during Hindi turns.
+
+Phase 2: The Semi-Multimodal Audio-In Experiment
+To eliminate ASR transcription errors, we transitioned to a unified multimodal architecture feeding 40ms log-mel spectrogram frames directly into Gemma Audio Native Core, paired with Parler TTS / XTTS.
+
+Key Engineering Achievement: Resolved critical dependency conflicts and model configuration unpickling errors by engineering strict monkey-patches (ParlerTTSConfig.has_no_defaults_at_init = True and PyTorch 2.6 weights_only=False overrides).
+
+Observed Limitations: While clinical reasoning and acoustic context accuracy improved drastically, the system suffered from a severe latency penalty (Time-To-First-Audio [TTFA] spiked to ~8.79s). Because Gemma generates text inside structured XML routing tags (<transcript>, <response_lang>, <response>), synchronous orchestrators were forced to wait for the entire generation loop to close before initiating audio synthesis.
+
+Phase 3: The End-to-End Discovery & Convergence to the Modular Hybrid Hub
+We investigated Meta SeamlessM4T v2 (Large, ~2.3B parameters), an end-to-end foundation model built on the UnitY2 non-autoregressive architecture for direct speech-to-speech translation and synthesis.
+
+Crucial Scientific Realization: While SeamlessM4T v2 excels at native cross-lingual voice preservation and eliminates intermediate text bottlenecks, it is an encoder-decoder translation engine, not an instruction-tuned language model. When fed raw patient audio in pure speech-to-speech mode, it can only translate or repeat the acoustic input; it lacks "Theory of Mind," cannot adopt the empathetic "Dr. Kavita" clinical persona, and cannot execute differential cardiology diagnoses.
+
+The Converged Target Architecture: We established that an end-to-end model cannot replace the reasoning brain. We converged upon a Modular Tri-Layer Hybrid Hub: utilizing SeamlessM4T v2 (or an optimized acoustic frontend) for native Indic speech I/O and translation, dynamically routed into an instruction-tuned reasoning LLM (Meta Llama-3.1-8B-Instruct or Nemotron-4-Mini-Hindi), safeguarded by asynchronous streaming parsers and acoustic error mitigation layers.
+
+2. TARGET PROBLEM STATEMENTS FOR ICASSP 2027 & WORK TO BE DONE
+To transform our R&I engineering diagnostics into a highly competitive submission for IEEE ICASSP 2027, we must formalize our findings into rigorous mathematical, signal-processing, and systems-level contributions. Below are four concrete problem statements mapped directly to core ICASSP technical tracks, along with the precise research methodology required to achieve them.
+
+PROBLEM STATEMENT 1
+Track: Speech and Language Processing (SLP) / Audio and Acoustic Signal Processing (AASP)
+Research Title: Mitigating Acoustic-to-Semantic Error Propagation in Code-Switched Medical ASR via Phonetic-Biased Levenshtein Bridges
+
+The Scientific Gap: In clinical edge environments, standard automatic speech recognition (ASR) systems exhibit high Word Error Rates (WER) when encountering domain-specific cardiology nomenclature uttered in slurred, weak, or code-switched (Hinglish) dialects. Conventional WER treats all word substitutions equally, failing to capture that a single phonetic hallucination on a pharmaceutical name or diagnostic metric can trigger catastrophic semantic hallucinations in the downstream LLM.
+
+Proposed Technical Solution: 1. Establish two new domain-specific evaluation metrics: Medical Entity Error Rate (MER) and Emergency Recognition Accuracy (ERA).
+2. Implement an algorithmic middleware: the Semantic-Biased Phonetic Levenshtein Bridge. Instead of passing raw ASR text directly to the LLM, the transcript streams through a phonemic distance matcher hardcoded to an exhaustive cardiovascular ontology (e.g., medications, anatomical terms, dosage units). When low-confidence acoustic tokens (e.g., "menstrual bulk recarbitation") are detected, the matcher calculates the phonetic Levenshtein distance in phoneme space and executes a real-time semantic correction to the nearest valid clinical entity ("mitral valve regurgitation") before tokenization by the LLM.
+
+🛠️ Work to be Done (Methodology & Implementation Plan):
+Dataset Engineering: Curate a standardized evaluation benchmark of 300–500 conversational turns by combining clean Hindi/Hinglish baseline speech from the Kathbath and Lahaja corpora with clinical cardiology terms from the EkaCare Clinical Voice Dataset.
+
+Acoustic Stress Augmentation: Systematically overlay physiological respiratory distress anomalies (coughing, wheezing, gasping from the Nonspeech7k and VocalSound datasets) and ambient hospital noise at varying Signal-to-Noise Ratios (SNRs: 0dB, 5dB, 10dB, 15dB).
+
+Experimental Ablation (Experiment A): Evaluate Pipeline 1 (Baseline Whisper → LLM) against Pipeline 1 + Phonetic Levenshtein Bridge. Measure standard WER alongside MER, ERA, and downstream LLM diagnostic accuracy to prove statistically significant error interception under high acoustic stress.
+
+PROBLEM STATEMENT 2
+Track: Machine Learning for Signal Processing (MLSP) / Multimedia Signal Processing (MSP)
+Research Title: Asynchronous Token-Streaming State Machines for Sub-Second Time-to-First-Audio (TTFA) in Structured Multimodal Edge Pipelines
+
+The Scientific Gap: Advanced clinical speech assistants require LLMs to emit structured metadata (e.g., <response_lang=hi>, <emotion=empathetic>, JSON logging blocks) to dynamically route downstream text-to-speech (TTS) engines and maintain clinical guardrails. However, synchronous decoding pipelines must wait for the closing structural tags before initiating audio synthesis. This "Structural Tag Blockade" inflates streaming latency on edge GPUs, pushing TTFA beyond human conversational tolerance (>8 seconds).
+
+Proposed Technical Solution: Design and implement an Asynchronous Token-Streaming Parser (ATSP) coupled with a Dual-Stream CUDA Execution Architecture. The ATSP is a lightweight, non-blocking state machine that intercepts the raw LLM token stream byte-by-byte at inference time. The moment the internal state machine validates the opening <response> boundary token, it suppresses metadata printing, unblocks downstream TTS queues, strips XML formatting on-the-fly, and chunks text sentence-by-sentence based on acoustic pause punctuation (., ?, |).
+
+🛠️ Work to be Done (Methodology & Implementation Plan):
+Mathematical Formalization: Formulate the latency equations governing sequential modular generation versus asynchronous token-interleaved generation, establishing the theoretical lower bound of TTFA on edge compute architectures.
+
+CUDA Stream Parallelization: Refine xtts_engine.py and styletts2_engine.py to instantiate a secondary CUDA stream (self.tts_stream = torch.cuda.Stream()). While the LLM generates reasoning tokens on the default CUDA stream, the extracted sentence chunks are pushed asynchronously to self.tts_stream, enabling simultaneous GPU execution of transformer decoding and diffusion/vocoder audio synthesis.
+
+Experimental Ablation (Experiment B): Compare Pipeline 2 (Baseline Gemma/LLM Synchronous) against Pipeline 2 + ATSP + Dual CUDA Streams. Quantify physical TTFA reduction across 350 standardized clinical prompts, targeting a sub-1.5-second conversational latency without sacrificing structural XML/JSON logging compliance.
+
+PROBLEM STATEMENT 3
+Track: Speech and Language Processing (SLP) / Biomedical Signal Processing (BI)
+Research Title: Sanitizing Autoregressive Acoustic Hallucinations and "Filler Babble" in Zero-Shot Indic Voice Synthesis
+
+The Scientific Gap: Autoregressive neural TTS architectures (e.g., Coqui XTTS-v2, Parler TTS) experience catastrophic Cross-Attention Alignment Drift during zero-shot voice cloning when generating code-switched Hinglish text or processing short, streamed sentence chunks. When attention matrices lose alignment between script densities (ASCII vs. Devanagari), the decoder fails to emit acoustic End-of-Sequence (EOS) tokens. This causes the model to hallucinate continuous trailing vocal murmurs, ghostly whispering, or repetitive "filler babble" amplified from background background noise present in the reference latent embedding.
+
+Proposed Technical Solution: Engineering a Tri-Stage Acoustic Sanitization Pipeline:
+
+Reference Latent Denoising: Pre-processing the 5-second speaker reference profile (doctor_voice.wav) using spectral gating and stationary noise suppression before computing conditioning latents on the CPU, preventing ambient room hiss from being encoded as vocal identity features.
+
+Indic Text Normalization & Padding Middleware: A real-time pre-processor that converts numerical digits to Devanagari words (replace_numbers_with_hindi_words), strips markdown symbols, and enforces a minimum character-length threshold per streaming chunk to stabilize cross-attention attention matrices.
+
+Energy-Threshold Truncation Guardrail: A fast, post-synthesis acoustic guardrail applying Short-Time Energy (STE) and Zero-Crossing Rate (ZCR) analysis to generated audio arrays, instantaneously truncating low-energy trailing murmurs before routing waveforms to Linux’s native ALSA aplay buffer.
+
+🛠️ Work to be Done (Methodology & Implementation Plan):
+Algorithmic Profiling: Extract and visualize the cross-attention alignment weights across transformer layers during Hinglish speech generation to mathematically document the exact layer and token where alignment drift initiates.
+
+Subjective & Objective Acoustic Evaluation: Conduct formal Mean Opinion Score (MOS) listening evaluations with native Hindi/English speakers to grade naturalness, speaker similarity, and clinical empathy.
+
+Quantitative Metrics: Compute Mel-Cepstral Distortion (MCD), F0 Frame Error (FFE), and the acoustic hallucination rate (percentage of synthesized chunks containing trailing babble >200ms post-text completion) across baseline XTTS versus our Sanitized Tri-Stage Pipeline.
+
+PROBLEM STATEMENT 4
+Track: Industry Technology Tracks / Edge Computing & Hardware Implementation (TM-APP)
+Research Title: An Empirical Energy-Latency-Safety Pareto Analysis of Modular vs. Semi-Multimodal Clinical Speech Assistants on Edge GPUs
+
+The Scientific Gap: Most academic speech AI research evaluates models purely on accuracy and generation quality on cloud clusters. However, deploying real-time, half-duplex conversational agents on portable medical edge devices (e.g., hospital crash carts, diagnostic laptops) introduces strict physical constraints: battery drain (Joules/turn), thermal throttling, and VRAM saturation. There is no rigorous empirical literature establishing the Pareto frontier between computational energy efficiency, streaming responsiveness (TTFA), and clinical diagnostic accuracy across modular and multimodal speech architectures on next-generation edge GPUs.
+
+Proposed Technical Solution: Conduct a comprehensive systems-level evaluation profiling the physical hardware footprint of our three evolutionary architectures on the NVIDIA RTX PRO 5000 Blackwell (sm_120) platform. We will quantify the exact tradeoffs between rapid sequential power spikes (modular cascaded systems) versus sustained high-wattage single-pass inference (multimodal systems).
+
+🛠️ Work to be Done (Methodology & Implementation Plan):
+Software-Based Power & Systems Logging: Integrate open-source monitoring frameworks into the orchestrator:
+
+Use CodeCarbon wrapping inference loops to track precise GPU/CPU energy consumption via Intel RAPL and NVML.
+
+Execute background asynchronous logging via nvidia-smi --query-gpu=power.draw,utilization.gpu,memory.used,temperature.gpu --format=csv -lms 100 to capture millisecond-level wattage spikes during VAD triggering, ASR decoding, LLM reasoning, and TTS diffusion.
+
+Pareto Frontier Construction: Plot the three architectures across a 3D parameter space: Energy Consumption (Joules/Turn) vs. Conversational Latency (TTFA in seconds) vs. Clinical Diagnostic Accuracy (ERA %).
+
+Corporate R&I Deliverable: Provide a formal engineering roadmap proving which architectural design is mathematically and physically viable for continuous, 24/7 battery-assisted clinical edge deployment without exceeding thermal dissipation limits.
+
+3. PRESENTATION ROADMAP FOR TCS R&I LEADERSHIP
+When presenting this report to corporate managers and academic advisors, frame the trajectory of the internship as a transition from Systems Engineering & Debugging to Formal Academic Hypothesis Testing:
+
+[CURRENT STATUS] Fully Functional Local Prototype on Blackwell Laptop (Phase 1 & Phase 2 tested)
+       │
+       ▼
+[STEP 1: BENCHMARK SETUP] Integrate Kathbath, Lahaja, Nonspeech7k, and EkaCare datasets (2 Weeks)
+       │
+       ▼
+[STEP 2: ALGORITHMIC IMPLEMENTATION] Code the ATSP Parser, Levenshtein Bridge, & Denoising Guardrails (3 Weeks)
+       │
+       ▼
+[STEP 3: DATA COLLECTION] Run 500-turn automated evaluation scripts logging TTFA, MER, MOS, & Joules/turn (2 Weeks)
+       │
+       ▼
+[STEP 4: PAPER DRAFTING] Write IEEE formatted paper targeting ICASSP 2027 SLP or MLSP tracks (3 Weeks)
+Key Takeaways for Leadership Presentation:
+We solved real hardware blockers: Our CPU-first initialization and dependency pinning successfully tamed the bleeding-edge NVIDIA Blackwell architecture where standard libraries crashed.
+
+We identified fundamental speech AI limitations: We proved that neither pure cascaded models (error propagation) nor pure end-to-end models like SeamlessM4T (lack of clinical reasoning) can solve healthcare voice AI alone.
+
+We have a concrete scientific publication plan: By implementing our proposed middleware solutions (ATSP, Levenshtein Bridge, Acoustic Sanitization), we are generating rigorous, publishable MLSP/SLP research that positions TCS R&I at the forefront of Edge AI speech systems.
