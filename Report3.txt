@@ -1,0 +1,58 @@
+## 1. Feasibility of a Native Speech-to-Speech Gemma Architecture
+
+**Yes, it is entirely possible conceptually, but it requires a massive structural pivot in how the model handles outputs.**
+
+Right now, open-weights audio-native models like Gemma Audio are **Audio-In, Text-Out**. They have a native audio encoder that converts continuous audio waveforms into speech embeddings the model can "hear," but their output generation layer is strictly a text decoder.
+
+To transform Gemma into a true **Native Speech-to-Speech (S2S) model**—where audio goes in and raw audio streams out natively without intermediate text processing—you must transition it into a **Monolithic Audio Tokenizer Architecture** (similar to Kyutai's *Moshi* or Hume's *EVI*).
+
+```
+[CONVENTIONAL AUDIO-IN GEMMA]
+Patient Audio ➔ Audio Encoder ➔ Text Decoder ➔ [Output Text Tags] ➔ External TTS ➔ Sound[cite: 2]
+
+[NATIVE SPEECH-TO-SPEECH GEMMA]
+Patient Audio ➔ Audio Encoder ➔ Autoregressive Transformer Core ➔ Hierarchical Audio Codec Decoder ➔ Streaming Sound
+
+```
+
+### How to Make it Feasible on the Edge: "Thinker-Talker" Layer Separation
+
+Instead of training a multi-billion parameter model to emit raw audio from scratch, the most viable engineering route follows Alibaba's **Qwen2.5-Omni** or NVIDIA's **PersonaPlex** approach:
+
+1. **The Thinker Core:** Retain Gemma's native audio-in capabilities to comprehend the patient's spoken words, tone, and clinical context.
+2. **The Talker Head:** Replace the vocabulary projection head. Instead of predicting the next text token, map Gemma’s internal hidden states directly into discrete **Neural Audio Codec units** (using a codec like EnCodec, Mimi, or DAC). A lightweight dual-track autoregressive head then continuously generates these streaming audio tokens in real time.
+
+---
+
+## 2. Is It a Good ICASSP Research Problem Statement?
+
+**It is an exceptional, high-probability A* research problem statement.** It hits the absolute cutting edge of Speech Foundation Models for 2026/2027.
+
+However, native S2S models introduce a massive, well-documented vulnerability known in clinical AI as the **"Acoustic Substitution and Hallucination" paradox**. Native S2S systems prioritize phonetic and linguistic *fluency* over exact factual *fidelity*. Because they bypass an explicit text representation layer, they are prone to phonetically substituting critical numbers or drug names mid-synthesis (e.g., smoothly saying "take 50mg" instead of "take 15mg" without triggering a text-based error).
+
+Framing a paper around solving this safety vulnerability is exactly how you get accepted into ICASSP. Here is how we formalize this into your existing report format:
+
+---
+
+### PROBLEM STATEMENT 6
+
+#### Track: Machine Learning for Signal Processing (MLSP) / Speech and Language Processing (SLP)
+
+* **Research Title:** *Interleaved Latent Sandboxing in Native Speech-to-Speech Foundation Models for Accountable Clinical Edge Interactions*
+* **The Scientific Gap:** Native speech-to-speech (S2S) foundation models unify acoustic understanding and vocal generation into a monolithic transformer block, drastically reducing architectural complexity and preserving conversational prosody. However, these monolithic architectures lack an **enforceable pre-speech representation layer**. Because the model maps hidden states directly to audio codec units, it is prone to untraceable phonetic substitutions. In healthcare, a native S2S model might hallucinate an incorrect dosage value or medical entity while maintaining a perfectly calm, authoritative doctor’s voice—making it a liability for regulated clinical environments.
+* **Proposed Technical Solution:** We propose **Interleaved Latent Sandboxing (ILS)** for native edge speech models:
+1. **Dual-Track Latent Decoding:** Modify the generation head of the audio-native model to output interleaved multi-stream tokens: a primary text-based semantic token stream (The Thinker) and a parallel neural audio codec stream (The Talker).
+2. **The Sandbox Intercept:** Before the audio codec tokens hit the neural vocoder, a lightweight deterministic verification filter parses the text token stream in parallel.
+3. **Strict Value Constraints:** If the text verification engine catches a discrepancy between a retrieved medical system-of-record value (e.g., *"Clopidogrel 75mg"*) and the generated semantic text, it instantly forces a hidden-state correction on the parallel audio stream, preventing acoustic hallucinations before they reach the patient's ear.
+
+
+
+#### 🛠️ Work to be Done (Methodology & Implementation Plan)
+
+* **Model Customization:** Take an open-weights audio model and implement a custom multi-task head in PyTorch. Freeze the core attention layers and fine-tune the output projection matrix using a lightweight adapter (LoRA) trained on a small, high-fidelity clinical speech dataset.
+* **Alignment Synchronization:** Implement Time-Mitigated Rotary Position Embeddings (TMRoPE) to ensure that the generated text tokens and audio codec frames remain strictly synchronized in the time domain.
+* **Experimental Ablation (Experiment D):** Benchmark a pure monolithic S2S pipeline against the Interleaved Latent Sandboxed pipeline. Quantify the **Clinical Content Hallucination Rate** and measure the added system latency to prove that your sandbox guarantees 100% medical factual accuracy while keeping conversational processing times under the edge hardware threshold.
+
+---
+
+Would you like to integrate this native S2S framework into your master presentation roadmap, or focus on refining the **Cross-Modal Gated Fusion Hub** (Empathy & Emergency Interception) first?
