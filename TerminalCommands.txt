@@ -1,0 +1,12 @@
+sudo apt-get update && sudo apt-get install -y \
+    alsa-utils \
+    portaudio19-dev \
+    libasound2-dev \
+    build-essential
+conda create -n cardio_care_ai python=3.11 -y
+conda activate cardio_care_ai
+pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130
+Verification check: Run python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)" in your terminal. It must print True 13.0.
+pip install transformers==4.46.3 accelerate sentencepiece soundfile pyaudio numpy
+cd cardio_care_ai
+python main.py
