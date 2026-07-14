@@ -1,0 +1,83 @@
+To target the **Main Technical Tracks of IEEE ICASSP 2027** (such as *Speech and Language Processing [SLP]*, *Machine Learning for Signal Processing [MLSP]*, and *Applied Signal Processing Systems [ASPS]*), you must strip away all domain-specific healthcare and cardiology references.
+
+ICASSP reviewers in the main tracks do not evaluate clinical utility; they evaluate **signal processing rigor, mathematical formulations, algorithmic novelties, and hardware-aware systems engineering**.
+
+Below are four **generic, foundational research topics** derived directly from your team's real-world experimental observations (latency blockades, code-switching attention collapse, acoustic blindness, and energy profiles). These are framed with **feasible, novel theoretical ideologies** that elevate your work from application implementation to elite conference research.
+
+---
+
+### TOPIC 1
+
+#### Target Track: Speech and Language Processing (SLP) / Machine Learning for Signal Processing (MLSP)
+
+* **Generic Academic Title:** *Asynchronous Token-Interleaved State Machines for Sub-Second Streaming in Autoregressive Audio-Language Foundation Models*
+* **The Foundational Scientific Gap (Your Generalized Observation):** In native audio-language models (e.g., SpeechLLMs, Gemma Audio, Moshi), the autoregressive generation of structural formatting tokens (such as language tags, XML/JSON routing metadata, or speaker turns) introduces sequential blocking dependencies. We term this the **"Structural Tag Blockade."** Because synchronous orchestrators must wait for structural boundary closures before releasing text to downstream text-to-speech (TTS) engines, the Time-To-First-Audio (TTFA) degrades significantly, preventing natural half-duplex conversational interaction.
+* **The Novel Research Ideology & Methodology:**
+Move beyond basic regex parsing by introducing an **Acoustic-Semantic Token De-interleaver (ASTD)**.
+1. **Logit-Space Speculative Interception:** Design a lightweight, non-blocking state machine that operates directly on the un-decoded logit probability distribution of the LLM at inference time.
+2. **Dynamic Stream Decoupling:** The ASTD speculatively separates non-acoustic control/routing tokens from speech-synthesis-ready semantic tokens in real time.
+3. **Parallel CUDA Execution:** Prove mathematically and empirically that by pushing semantic sentence chunks to a secondary GPU CUDA stream (`torch.cuda.Stream()`) the moment an acoustic boundary punctuation occurs—without waiting for structural tag completion—you decouple reasoning latency from acoustic playback latency, achieving near-instantaneous streaming on edge GPUs.
+
+
+
+---
+
+### TOPIC 2
+
+#### Target Track: Speech and Language Processing (SLP)
+
+* **Generic Academic Title:** *Mitigating Cross-Attention Alignment Drift and Acoustic Babble in Zero-Shot Code-Switched Speech Synthesis*
+* **The Foundational Scientific Gap (Your Generalized Observation):** Autoregressive neural TTS models (such as XTTS or Parler) rely on cross-attention matrices between target script embeddings and reference speaker conditioning latents. When synthesizing **code-switched speech** (e.g., alternating between Latin/ASCII scripts and Brahmic/Indic scripts like Devanagari) or processing very short streamed sentence chunks, asymmetric token densities cause catastrophic **Cross-Attention Alignment Drift**. When attention collapses, the decoder fails to emit acoustic End-of-Sequence (EOS) tokens, causing the vocoder to hallucinate continuous trailing vocal murmurs, ghostly whispering, or repetitive "acoustic babble" amplified from background reference noise.
+* **The Novel Research Ideology & Methodology:**
+Do not treat this as a software bug; frame it as an acoustic regularization and boundary-detection problem by introducing a **Dual-Stage Acoustic Termination Framework**:
+1. **Script-Density Normalized Attention Regularizer (SDNAR):** Formulate an entropy-scaling penalty applied to the transformer’s cross-attention layers that dynamically normalizes attention weights across asymmetric script densities, preventing matrix collapse during mid-sentence code-switching.
+2. **Energy-Gated Latent EOS Enforcement:** Design a real-time signal guardrail that applies Short-Time Energy (STE) and Zero-Crossing Rate (ZCR) analysis directly to the generated latent audio arrays. If attention drift is detected via entropy spiking, the gating network mathematically forces an acoustic termination, cleanly truncating trailing hallucinations before vocoder synthesis.
+
+
+
+---
+
+### TOPIC 3
+
+#### Target Track: Speech and Language Processing (SLP) / Audio and Acoustic Signal Processing (AASP)
+
+* **Generic Academic Title:** *Continuous Prosodic-Residual Conditioning for Affect-Preserving Discretized Speech-to-Speech Dialogue Systems*
+* **The Foundational Scientific Gap (Your Generalized Observation):** Discretizing continuous speech waveforms into semantic text or discrete acoustic units (such as UnitY2 tokens in SeamlessM4T) for transformer-based reasoning strips away vital acoustic prosody—a phenomenon known as **"Acoustic Blindness."** While the intermediate language model generates semantically appropriate responses, it loses the fundamental frequency ($F_0$), pitch variance, jitter, and speech-rate density of the speaker's emotional state. Consequently, synthesized responses suffer from static, robotic prosody that fails to mirror conversational urgency or affect.
+* **The Novel Research Ideology & Methodology:**
+Propose a **Dual-Path Prosodic-Residual Bridging Architecture**:
+1. **Continuous Affect Extraction:** While the primary frontend converts speech into discrete tokens for semantic LLM reasoning, a parallel lightweight signal-processing branch extracts a continuous, low-dimensional **Prosodic-Affective Latent Vector (PALV)** modeling $\Delta F_0$, spectral tilt, and pause density.
+2. **Latent Vocoder Biasing:** This PALV completely bypasses the discrete reasoning bottleneck and is injected directly as a conditioning bias into the backend neural synthesizer (or diffusion vocoder). This forces the generated voice to dynamically scale its prosodic expressiveness and speaking rate to mirror the user's acoustic state in zero-shot environments, without altering the semantic tokens generated by the brain.
+
+
+
+---
+
+### TOPIC 4
+
+#### Target Track: Applied Signal Processing Systems (ASPS) / Sustainable Machine Learning
+
+* **Generic Academic Title:** *Energy-Latency Pareto Optimization of Multi-Stage vs. Unified Multimodal Speech Dialogue Architectures on Edge GPU Accelerators*
+* **The Foundational Scientific Gap (Your Generalized Observation):** Deploying real-time speech dialogue agents on power-constrained edge accelerators (e.g., NVIDIA Blackwell mobile/edge workstations) requires navigating an unmapped trade-off between computational energy consumption ($\text{Joules/turn}$), streaming latency ($\text{TTFA}$), and acoustic reconstruction fidelity. Multi-stage cascaded pipelines exhibit rapid, sequential power spikes that strain thermal limits, whereas unified multimodal foundation models induce sustained, high-wattage single-pass inference draws.
+* **The Novel Research Ideology & Methodology:**
+Establish a formal **Mathematical Pareto Frontier Framework** for edge speech processing:
+1. **Empirical Systems Modeling:** Use hardware-level telemetry (NVML/RAPL) to construct differential energy equations comparing sequential model loading versus unified dense attention across varying conversational sequence lengths.
+2. **Adaptive Compute-Routing Engine (ACRE):** Propose an algorithmic runtime controller that dynamically switches inference pathways on the edge GPU. Based on real-time acoustic Signal-to-Noise Ratio (SNR) and token entropy, ACRE routes clean, straightforward speech through a low-power cascaded path, while dynamically elevating complex, noisy, or code-switched audio to the high-power unified multimodal path, optimizing total Joules per conversational turn while preserving acoustic accuracy.
+
+
+
+---
+
+### How to Present This to Your Research Team
+
+To pivot your team from domain-specific engineering to ICASSP Main Track research, summarize your strategy with this framing:
+
+* **We are not building a cardiology assistant;** we are using our conversational agent as an **experimental testbed** to solve fundamental speech AI signal processing bottlenecks.
+* **Our novel contributions are mathematical and structural:**
+* **Topic 1** solves *latency* via logit-space de-interleaving.
+* **Topic 2** solves *zero-shot stability* via cross-attention regularization.
+* **Topic 3** solves *prosodical affect* via dual-path residual conditioning.
+* **Topic 4** solves *hardware efficiency* via Pareto-optimal compute routing.
+
+
+
+Any of these four topics can be executed using your existing codebases, datasets (Kathbath, Lahaja, Nonspeech7k), and your NVIDIA RTX PRO 5000 Blackwell hardware, while guaranteeing complete alignment with ICASSP's main track standards!
